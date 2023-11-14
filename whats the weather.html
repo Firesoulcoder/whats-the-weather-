@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-icon {
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-r from-blue-400 to-purple-500 min-h-screen flex items-center justify-center">
+    <div class="bg-white rounded-lg p-8 shadow-md w-96">
+        <h1 class="text-3xl font-semibold mb-6 text-center animate-bounce">What's the Weather?</h1>
+        <div class="mb-6 animate-fade-in">
+            <label for="city" class="block mb-2 text-lg">Enter City:</label>
+            <input type="text" id="city" class="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring focus:border-blue-300" placeholder="e.g. New York">
+        </div>
+        <button class="w-full py-3 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 animate-bounce" onclick="getTodayWeather()">Get Weather</button>
+        <button class="w-full mt-2 py-3 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600 animate-bounce" onclick="getWeatherByGeolocation()">Get Weather by Geolocation</button>
+        <div class="loading-overlay" id="loading">
+            <div class="loading-icon w-12 h-12 border-t-4 border-blue-500 animate-spin"></div>
+        </div>
+        <div id="weather-info" class="mt-8"></div>
+    </div>
+    <script>
+        function hideLoadingOverlay() {
+            const loadingOverlay = document.getElementById("loading");
+            loadingOverlay.style.display = "none";
+        }
+
+        // Add this line to hide the loading overlay after 3 seconds
+        setTimeout(hideLoadingOverlay, 3000);
+
+        let isShowingSevenDays = false;
+
+        function toggleForecastButton() {
+            const forecastButton = document.getElementById("forecast-button");
+            if (isShowingSevenDays) {
+                forecastButton.textContent = "Show 3 Days Weather Forecast";
+            } else {
+                forecastButton.textContent = "Show 3 Days Weather Forecast";
+            }
+            isShowingSevenDays = !isShowingSevenDays;
+        }
+
+        // Function to get weather based on user's geolocation
+        function getWeatherByGeolocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+
+                    // Call a function to fetch weather data using the obtained latitude and longitude
+                    fetchWeatherByCoordinates(latitude, longitude);
+                });
+            } else {
+                alert("Geolocation is not available in your browser.");
+            }
+        }
+
+        // Function to fetch weather data using latitude and longitude
+        function fetchWeatherByCoordinates(latitude, longitude) {
+            const apiKey = "34311394cd354a84a9380100233107"; // Replace with your API key
+
+            fetch(`https://api.weatherapi.com/v1/current.json?key=${apiKey}&q=${latitude},${longitude}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Unable to retrieve weather data.");
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const city = data.location.name;
+                    displayTodayWeather(data.current, city);
+                    showForecastButton(city);
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+        }
+
+        function getTodayWeather() {
+            const apiKey = "34311394cd354a84a9380100233107"; // Replace with your API key
+            const city = document.getElementById("city").value;
+
+            fetch(`https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=1`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("City not found. Please enter a valid city name.");
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayTodayWeather(data.current, city);
+                    showForecastButton(city);
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
+        }
+
+        // Function to fetch 3 or 7-day forecast
+        function getForecast(city) {
+            const apiKey = "34311394cd354a84a9380100233107"; // Replace with your API key
+            const days = isShowingSevenDays ? 7 : 3;
+
+            fetch(`https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${city}&days=${days}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("City not found. Please enter a valid city name.");
+                    }
+                    return response.json();
+                })
+                .then(data => displayForecast(data.forecast.forecastday))
+                .catch(error => {
+                    alert(error.message);
+                });
+        }
+
+        function displayTodayWeather(currentWeather, city) {
+            const weatherInfo = document.getElementById("weather-info");
+            const tempC = currentWeather.temp_c;
+            const tempF = currentWeather.temp_f;
+            const condition = currentWeather.condition.text;
+            const iconUrl = currentWeather.condition.icon;
+
+            const todayWeatherHtml = `
+                <h2 class="text-2xl font-semibold mb-4">${city} - Today's Weather</h2>
+                <div class="flex items-center mt-2">
+                    <img src="${iconUrl}" alt="Weather Icon" class="w-12 h-12 mr-4">
+                    <p class="text-lg">Temperature: ${tempC} °C / ${tempF} °F</p>
+                </div>
+                <p class="text-lg mt-2">Condition: ${condition}</p>
+            `;
+
+            weatherInfo.innerHTML = todayWeatherHtml;
+        }
+
+        function displayForecast(forecastDays) {
+            const weatherInfo = document.getElementById("weather-info");
+
+            let forecastHtml = `
+                <h2 class="text-2xl font-semibold mb-4">${isShowingSevenDays ? '7-day' : '3-day'} Forecast</h2>
+            `;
+
+            forecastDays.forEach(day => {
+                const date = day.date;
+                const tempMaxC = day.day.maxtemp_c;
+                const tempMaxF = day.day.maxtemp_f;
+                const tempMinC = day.day.mintemp_c;
+                const tempMinF = day.day.mintemp_f;
+                const description = day.day.condition.text;
+                const iconUrl = day.day.condition.icon;
+
+                forecastHtml += `
+                    <div class="mb-4 border-t pt-4">
+                        <p class="text-lg">${date}</p>
+                        <div class="flex items-center mt-2">
+                            <img src="${iconUrl}" alt="Weather Icon" class="w-12 h-12 mr-4">
+                            <p class="text-lg">Max Temp: ${tempMaxC} °C / ${tempMaxF} °F</p>
+                        </div>
+                        <div class="flex items-center mt-2">
+                            <p class="text-lg">Min Temp: ${tempMinC} °C / ${tempMinF} °F</p>
+                        </div>
+                        <p class="text-lg mt-2">Description: ${description}</p>
+                    </div>
+                `;
+            });
+
+            weatherInfo.innerHTML = forecastHtml;
+        }
+
+        function showForecastButton(city) {
+            const forecastButtonHtml = `
+                <button id="forecast-button" class="w-full mt-2 py-3 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600" onclick="getForecast('${city}')">${isShowingSevenDays ? 'Show 3 Days Weather Forecast' : 'Show 7 Days Weather Forecast'}</button>
+            `;
+            document.getElementById("weather-info").insertAdjacentHTML("beforeend", forecastButtonHtml);
+        }
+    </script>
+</body>
+</html>
